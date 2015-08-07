@@ -57,6 +57,16 @@ test.skip('rejects promise for network error', function() {
 
 // https://fetch.spec.whatwg.org/#headers-class
 suite('Headers', function() {
+  test('constructor copies headers', function() {
+    var original = new Headers()
+    original.append('Accept', 'application/json')
+    original.append('Accept', 'text/plain')
+    original.append('Content-Type', 'text/html')
+
+    var headers = new Headers(original)
+    assert.deepEqual(['application/json', 'text/plain'], headers.getAll('Accept'))
+    assert.deepEqual(['text/html'], headers.getAll('Content-Type'))
+  })
   test('headers are case insensitive', function() {
     var headers = new Headers({'Accept': 'application/json'})
     assert.equal(headers.get('ACCEPT'), 'application/json')
@@ -118,7 +128,9 @@ suite('Headers', function() {
   test('converts field value to string on set and get', function() {
     var headers = new Headers()
     headers.set('Content-Type', 1)
+    headers.set('X-CSRF-Token', undefined);
     assert.equal(headers.get('Content-Type'), '1')
+    assert.equal(headers.get('X-CSRF-Token'), 'undefined')
   })
   test('throws TypeError on invalid character in field name', function() {
     assert.throws(function() { new Headers({'<Accept>': ['application/json']}) }, TypeError)
@@ -127,6 +139,29 @@ suite('Headers', function() {
       var headers = new Headers();
       headers.set({field: 'value'}, 'application/json');
     }, TypeError)
+  })
+  test('is iterable with forEach', function() {
+    var headers = new Headers()
+    headers.append('Accept', 'application/json')
+    headers.append('Accept', 'text/plain')
+    headers.append('Content-Type', 'text/html')
+
+    var results = []
+    headers.forEach(function(value, key, object) {
+      results.push({value: value, key: key, object: object})
+    })
+
+    assert.equal(results.length, 3)
+    assert.deepEqual({key: 'accept', value: 'application/json', object: headers}, results[0])
+    assert.deepEqual({key: 'accept', value: 'text/plain', object: headers}, results[1])
+    assert.deepEqual({key: 'content-type', value: 'text/html', object: headers}, results[2])
+  })
+  test('forEach accepts second thisArg argument', function() {
+    var headers = new Headers({'Accept': 'application/json'})
+    var thisArg = 42
+    headers.forEach(function() {
+      assert.equal(this, thisArg)
+    }, thisArg)
   })
  })
 
@@ -165,6 +200,82 @@ suite('Request', function() {
   test('construct with url', function() {
     var request = new Request('https://fetch.spec.whatwg.org/')
     assert.equal(request.url, 'https://fetch.spec.whatwg.org/')
+  })
+
+  test('construct with Request', function() {
+    var request1 = new Request('https://fetch.spec.whatwg.org/', {
+      method: 'post',
+      body: 'I work out',
+      headers: {
+        accept: 'application/json',
+        'Content-Type': 'text/plain'
+      }
+    })
+    var request2 = new Request(request1)
+
+    return request2.text().then(function(body2) {
+      assert.equal(body2, 'I work out')
+      assert.equal(request2.method, 'POST')
+      assert.equal(request2.url, 'https://fetch.spec.whatwg.org/')
+      assert.equal(request2.headers.get('accept'), 'application/json')
+      assert.equal(request2.headers.get('content-type'), 'text/plain')
+
+      return request1.text().then(function() {
+        assert(false, 'original request body should have been consumed')
+      }, function(error) {
+        assert(error instanceof TypeError, 'expected TypeError for already read body')
+      })
+    })
+  })
+
+  test('construct with Request and override headers', function() {
+    var request1 = new Request('https://fetch.spec.whatwg.org/', {
+      method: 'post',
+      body: 'I work out',
+      headers: {
+        accept: 'application/json',
+        'Content-Type': 'text/plain'
+      }
+    })
+    var request2 = new Request(request1, {
+      headers: { 'x-test': '42' }
+    })
+
+    assert.equal(request2.headers.get('accept'), undefined)
+    assert.equal(request2.headers.get('content-type'), undefined)
+    assert.equal(request2.headers.get('x-test'), '42')
+  })
+
+  test('construct with Request and override body', function() {
+    var request1 = new Request('https://fetch.spec.whatwg.org/', {
+      method: 'post',
+      body: 'I work out',
+      headers: {
+        'Content-Type': 'text/plain'
+      }
+    })
+    var request2 = new Request(request1, {
+      body: '{"wiggles": 5}',
+      headers: { 'Content-Type': 'application/json' }
+    })
+
+    return request2.json().then(function(data) {
+      assert.equal(data.wiggles, 5)
+      assert.equal(request2.headers.get('content-type'), 'application/json')
+    })
+  })
+
+  ;(/Chrome\//.test(navigator.userAgent) ? test.skip : test)('construct with used Request body', function() {
+    var request1 = new Request('https://fetch.spec.whatwg.org/', {
+      method: 'post',
+      body: 'I work out'
+    })
+
+    return request1.text().then(function() {
+      assert.throws(function() {
+        new Request(request1)
+      }, TypeError)
+    })
   })
 
   // https://fetch.spec.whatwg.org/#concept-bodyinit-extract
@@ -396,7 +507,11 @@ suite('Body mixin', function() {
         response.formData()
         return response.formData()
       }).catch(function(error) {
-        assert(error instanceof TypeError, 'Promise rejected after body consumed')
+        if (error instanceof chai.AssertionError) {
+          throw error
+        } else {
+          assert(error instanceof TypeError, 'Promise rejected after body consumed')
+        }
       })
     })
 
