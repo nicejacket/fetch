@@ -31,6 +31,13 @@ For a node.js implementation, try [node-fetch](https://github.com/bitinn/node-fe
 
 For use with webpack, refer to [Using WebPack with shims and polyfills](http://mts.io/2015/04/08/webpack-shims-polyfills/).
 
+For babel and es2015+, make sure to import the file:
+
+```javascript
+import 'whatwg-fetch';
+fetch(...);
+```
+
 ## Usage
 
 The `fetch` function supports any HTTP method. We'll focus on GET and POST
@@ -77,7 +84,7 @@ fetch('/users.json').then(function(response) {
 var form = document.querySelector('form')
 
 fetch('/users', {
-  method: 'post',
+  method: 'POST',
   body: new FormData(form)
 })
 ```
@@ -86,7 +93,7 @@ fetch('/users', {
 
 ```javascript
 fetch('/users', {
-  method: 'post',
+  method: 'POST',
   headers: {
     'Accept': 'application/json',
     'Content-Type': 'application/json'
@@ -108,7 +115,7 @@ data.append('file', input.files[0])
 data.append('user', 'hubot')
 
 fetch('/avatars', {
-  method: 'post',
+  method: 'POST',
   body: data
 })
 ```

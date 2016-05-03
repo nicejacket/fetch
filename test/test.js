@@ -1,4 +1,5 @@
 var support = {
+  searchParams: 'URLSearchParams' in self,
   blob: 'FileReader' in self && 'Blob' in self && (function() {
     try {
       new Blob()
@@ -185,7 +186,7 @@ suite('Headers', function() {
   test('converts field value to string on set and get', function() {
     var headers = new Headers()
     headers.set('Content-Type', 1)
-    headers.set('X-CSRF-Token', undefined);
+    headers.set('X-CSRF-Token', undefined)
     assert.equal(headers.get('Content-Type'), '1')
     assert.equal(headers.get('X-CSRF-Token'), 'undefined')
   })
@@ -193,8 +194,8 @@ suite('Headers', function() {
     assert.throws(function() { new Headers({'<Accept>': ['application/json']}) }, TypeError)
     assert.throws(function() { new Headers({'Accept:': ['application/json']}) }, TypeError)
     assert.throws(function() {
-      var headers = new Headers();
-      headers.set({field: 'value'}, 'application/json');
+      var headers = new Headers()
+      headers.set({field: 'value'}, 'application/json')
     }, TypeError)
   })
   featureDependent(test, !nativeFirefox, 'is iterable with forEach', function() {
@@ -219,6 +220,42 @@ suite('Headers', function() {
     headers.forEach(function() {
       assert.equal(this, thisArg)
     }, thisArg)
+  })
+  test('is iterable with keys', function() {
+    var headers = new Headers()
+    headers.append('Accept', 'application/json')
+    headers.append('Accept', 'text/plain')
+    headers.append('Content-Type', 'text/html')
+
+    var iterator = headers.keys()
+    assert.deepEqual({done: false, value: 'accept'}, iterator.next())
+    assert.deepEqual({done: false, value: 'accept'}, iterator.next())
+    assert.deepEqual({done: false, value: 'content-type'}, iterator.next())
+    assert.deepEqual({done: true, value: undefined}, iterator.next())
+  })
+  test('is iterable with values', function() {
+    var headers = new Headers()
+    headers.append('Accept', 'application/json')
+    headers.append('Accept', 'text/plain')
+    headers.append('Content-Type', 'text/html')
+
+    var iterator = headers.values()
+    assert.deepEqual({done: false, value: 'application/json'}, iterator.next())
+    assert.deepEqual({done: false, value: 'text/plain'}, iterator.next())
+    assert.deepEqual({done: false, value: 'text/html'}, iterator.next())
+    assert.deepEqual({done: true, value: undefined}, iterator.next())
+  })
+  test('is iterable with entries', function() {
+    var headers = new Headers()
+    headers.append('Accept', 'application/json')
+    headers.append('Accept', 'text/plain')
+    headers.append('Content-Type', 'text/html')
+
+    var iterator = headers.entries()
+    assert.deepEqual({done: false, value: ['accept', 'application/json']}, iterator.next())
+    assert.deepEqual({done: false, value: ['accept', 'text/plain']}, iterator.next())
+    assert.deepEqual({done: false, value: ['content-type', 'text/html']}, iterator.next())
+    assert.deepEqual({done: true, value: undefined}, iterator.next())
   })
  })
 
@@ -272,6 +309,18 @@ suite('Request', function() {
     }).then(function(request) {
       assert.equal(request.method, 'POST')
       assert.equal(request.data, 'name=Hubot')
+    })
+  })
+
+  featureDependent(test, support.searchParams, 'sends URLSearchParams body', function() {
+    return fetch('/request', {
+      method: 'post',
+      body: new URLSearchParams('a=1&b=2')
+    }).then(function(response) {
+      return response.json()
+    }).then(function(request) {
+      assert.equal(request.method, 'POST')
+      assert.equal(request.data, 'a=1&b=2')
     })
   })
 
@@ -406,6 +455,25 @@ suite('Request', function() {
     assert.equal(req.headers.get('content-type'), 'image/png')
   })
 
+  featureDependent(test, support.searchParams, 'construct with URLSearchParams body sets Content-Type header', function() {
+    var req = new Request('https://fetch.spec.whatwg.org/', {
+      method: 'post',
+      body: new URLSearchParams('a=1&b=2')
+    })
+
+    assert.equal(req.headers.get('content-type'), 'application/x-www-form-urlencoded;charset=UTF-8')
+  })
+
+  featureDependent(test, support.searchParams, 'construct with URLSearchParams body and explicit Content-Type header', function() {
+    var req = new Request('https://fetch.spec.whatwg.org/', {
+      method: 'post',
+      headers: { 'Content-Type': 'image/png' },
+      body: new URLSearchParams('a=1&b=2')
+    })
+
+    assert.equal(req.headers.get('content-type'), 'image/png')
+  })
+
   test('clone request', function() {
     var req = new Request('https://fetch.spec.whatwg.org/', {
       method: 'post',
@@ -527,11 +595,11 @@ suite('Response', function() {
   })
 
   test('creates Headers object from raw headers', function() {
-    var r = new Response('{"foo":"bar"}', {headers: {'content-type': 'application/json'}});
-    assert.equal(r.headers instanceof Headers, true);
+    var r = new Response('{"foo":"bar"}', {headers: {'content-type': 'application/json'}})
+    assert.equal(r.headers instanceof Headers, true)
     return r.json().then(function(json){
-      assert.equal(json.foo, 'bar');
-      return json;
+      assert.equal(json.foo, 'bar')
+      return json
     })
   })
 
@@ -574,7 +642,7 @@ suite('Response', function() {
 
   test('redirect creates redirect Response', function() {
     var r = Response.redirect('https://fetch.spec.whatwg.org/', 301)
-    assert(r instanceof Response);
+    assert(r instanceof Response)
     assert.equal(r.status, 301)
     assert.equal(r.headers.get('Location'), 'https://fetch.spec.whatwg.org/')
   })
@@ -949,7 +1017,7 @@ suite('Atomic HTTP redirect handling', function() {
 // https://fetch.spec.whatwg.org/#concept-request-credentials-mode
 suite('credentials mode', function() {
   setup(function() {
-    return fetch('/cookie?name=foo&value=reset', {credentials: 'same-origin'});
+    return fetch('/cookie?name=foo&value=reset', {credentials: 'same-origin'})
   })
 
   featureDependent(suite, exerciseMode === 'native', 'omit', function() {
@@ -960,7 +1028,7 @@ suite('credentials mode', function() {
 
     test('does not accept cookies with implicit omit credentials', function() {
       return fetch('/cookie?name=foo&value=bar').then(function() {
-        return fetch('/cookie?name=foo', {credentials: 'same-origin'});
+        return fetch('/cookie?name=foo', {credentials: 'same-origin'})
       }).then(function(response) {
         return response.text()
       }).then(function(data) {
@@ -970,7 +1038,7 @@ suite('credentials mode', function() {
 
     test('does not accept cookies with omit credentials', function() {
       return fetch('/cookie?name=foo&value=bar', {credentials: 'omit'}).then(function() {
-        return fetch('/cookie?name=foo', {credentials: 'same-origin'});
+        return fetch('/cookie?name=foo', {credentials: 'same-origin'})
       }).then(function(response) {
         return response.text()
       }).then(function(data) {
@@ -980,7 +1048,7 @@ suite('credentials mode', function() {
 
     test('does not send cookies with implicit omit credentials', function() {
       return fetch('/cookie?name=foo&value=bar', {credentials: 'same-origin'}).then(function() {
-        return fetch('/cookie?name=foo');
+        return fetch('/cookie?name=foo')
       }).then(function(response) {
         return response.text()
       }).then(function(data) {
