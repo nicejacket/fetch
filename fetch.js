@@ -396,7 +396,7 @@
       if (!('onload' in xhr)) {
         xhr.onreadystatechange = function() {
           if (xhr.readyState == 4) {
-            var status = xhr.status;
+            var status = (xhr.status === 1223) ? 204 : xhr.status
             if (!status || (status >= 200 && status < 300) || status == 304) {
               xhr.onload && xhr.onload();
             } else {
