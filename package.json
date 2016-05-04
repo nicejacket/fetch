@@ -1,5 +1,5 @@
 {
-  "name": "whatwg-fetch-ie8",
+  "name": "whatwg-fetch",
   "description": "A window.fetch polyfill.(fork from github/fetch and simple support for ie8.)",
   "version": "1.0.0",
   "main": "fetch.js",
